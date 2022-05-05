@@ -17,5 +17,5 @@ def tokenize(string: str):
 
 def tokenize_instance(instance):
   """Simple wrapper that applies the `tokenize` function to an instance."""
-  return {'tokens': tokenize(instance['text'])}
+  return {'tokens': tokenize(instance['quote'])}
 

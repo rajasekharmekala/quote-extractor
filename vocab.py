@@ -47,8 +47,6 @@ class Vocabulary():
             tokens = tokens + [self.pad_token]*(max_length-len(tokens))
         return [self.map_token_to_id(token) for token in tokens]
     
-    def tokens_to_ids(self, instance):
-        return {'token_ids': self.map_tokens_to_ids(instance['tokens'], max_length=config.MAX_LENGTH)}
 
 
     def map_ids_to_tokens(self, ids: list, filter_padding=True):

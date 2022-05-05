@@ -4,6 +4,8 @@ import torch
 from tqdm import tqdm
 import datasets
 
+from dataset import get_dataset
+
 # import transformers
 
 from vocab import Vocabulary
@@ -83,17 +85,18 @@ def validate(val_dataloader, model, config, best_val_accuracy):
     return best_val_accuracy
 
 def prepare_data(config):
-    train_data = datasets.load_dataset('tweet_eval', name='emoji', split='train')
-    val_data = datasets.load_dataset('tweet_eval', name='emoji', split='validation')
-    test_data = datasets.load_dataset('tweet_eval', name='emoji', split='test')
-
+    # train_data = datasets.load_dataset('tweet_eval', name='emoji', split='train')
+    # val_data = datasets.load_dataset('tweet_eval', name='emoji', split='validation')
+    # test_data = datasets.load_dataset('tweet_eval', name='emoji', split='test')
+    # print(train_data)
+    dataset = get_dataset()
+    train_data, val_data, test_data, num_classes = dataset["train"], dataset["valid"], dataset["test"], dataset["num_classes"]
     print("features: ", train_data.info.features)
-    class_label = train_data.info.features['label']
-    print(class_label)
 
     train_data = train_data.map(tokenize_instance)
     val_data = val_data.map(tokenize_instance)
     test_data = test_data.map(tokenize_instance)
+
 
     # Count the token frequencies.
     counter = collections.Counter()
@@ -108,12 +111,11 @@ def prepare_data(config):
     val_data = val_data.map(tokens_to_ids, fn_kwargs={'vocab':vocab, 'config': config})
     test_data = test_data.map(tokens_to_ids, fn_kwargs={'vocab':vocab, 'config': config})
 
-
     train_data.set_format(type='torch', columns=['token_ids', 'label'])
     val_data.set_format(type='torch', columns=['token_ids', 'label'])
     test_data.set_format(type='torch', columns=['token_ids', 'label'])
 
-    return train_data, val_data, test_data, vocab, class_label
+    return train_data, val_data, test_data, vocab, num_classes
 
 
 def main():
@@ -123,7 +125,7 @@ def main():
 
     config.VOCAB_SIZE = 10000  # No magic numbers.
     config.MAX_LENGTH = 32
-    config.EPOCHS = 1
+    config.EPOCHS = 10
     config.BATCH_SIZE = 16
     config.DROPOUT_RATE = 0.1
     config.HIDDEN_DIM = 128
@@ -132,11 +134,11 @@ def main():
     print(f"Running on {config.DEVICE}")
 
 
-    train_data, val_data, test_data, vocab, class_label = prepare_data(config)
+    train_data, val_data, test_data, vocab, num_classes = prepare_data(config)
     vocab_size = len(vocab)
     model = Model(
         vocab_size=vocab_size,
-        n_classes=class_label.num_classes,
+        n_classes=num_classes,
         hidden_dim=config.HIDDEN_DIM,
         dropout_rate=config.DROPOUT_RATE
     )
@@ -157,9 +159,9 @@ def main():
     # Load the best model checkpoint
     state_dict = torch.load('ckpt.pt')
     model.load_state_dict(state_dict)
-    return model, vocab, config, class_label
+    return model, vocab, config, num_classes
 
 
 if __name__ == '__main__':
-    model, vocab, config, class_label = main()
-    infer('LOL that is fuunnnyyyy.', model, vocab, config, class_label)
+    model, vocab, config, num_classes = main()
+    # infer('LOL that is fuunnnyyyy.', model, vocab, config, class_label)
