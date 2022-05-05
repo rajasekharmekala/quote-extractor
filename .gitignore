@@ -3,3 +3,5 @@ images/*
 NLP\ notes.ipynb
 .ipynb_checkpoints
 .DS_Store
+__pycache__/*
+*.pt
