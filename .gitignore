@@ -5,3 +5,6 @@ NLP\ notes.ipynb
 .DS_Store
 __pycache__/*
 *.pt
+OEBPS/*
+META-INF/*
+sample*
