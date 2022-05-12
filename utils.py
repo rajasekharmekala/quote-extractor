@@ -3,7 +3,8 @@ class Accuracy:
     self.correct = 0
     self.total = 0
   
-  def update(self, correct):
+  def update(self, predictions, labels):
+    correct = predictions == labels
     self.correct += correct.sum().item()
     self.total += correct.shape[0]
 

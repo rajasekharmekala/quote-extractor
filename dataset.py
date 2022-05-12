@@ -5,21 +5,33 @@ import sqlite3
 import numpy as np
 import pandas as pd
 import ast
-
+import json
 
 def get_tags_dict(df):
     tags = {}
+    quotes_with_tags = 0
+    _dict = {}
+    with open("labelmap.json", "r") as f:
+        _dict = json.load(f)
     for tag in df["label"]:
         if tag == "None":
             tag_list = []
             tags["None"] = tags.get("None", 0)+1
         else:
             tag_list = ast.literal_eval(tag)
+            if len(tag_list) >0:
+                quotes_with_tags+=1
         for tag_el in tag_list:
-            tags[tag_el] = tags.get(tag_el, 0)+1
+            if tag_el in _dict:
+                for x in _dict[tag_el]:
+                    tags[x] = tags.get(x, 0)+1
+            else:
+                # tag_el = tag_el.split("-")[0]
+                tags[tag_el] = tags.get(tag_el, 0)+1
+    print("Total quotes with tags: ", quotes_with_tags)
     return tags
 
-def get_tags(df,min_count=1000):
+def get_tags(df,min_count=500):
     tags_dict = get_tags_dict(df)
     print("Total Tags: ", len(tags_dict))
     tags = []
@@ -31,15 +43,18 @@ def get_tags(df,min_count=1000):
     print("Used Tags: ", len(tags))
     return tags
 
-def clean_tags(tag, tags, tags_count):
+def clean_tags(tag, tags, num_classes):
     if tag == "None":
-        return tags_count
+        return num_classes-1
+
     else:
         tag_list = ast.literal_eval(tag)
-    for idx, tag_el in enumerate(tag_list):
-        if tag_el in tags:
-            return idx
-    return tags_count
+    for tag_el in tag_list:
+        try:
+            return tags.index(tag_el)
+        except:
+            pass
+    return num_classes -1
     
 
 
@@ -56,13 +71,13 @@ def prepare_dataframe():
     # Dropping empty quotes
     df = df.drop(df[df["quote"] == ""].index)
     print(tags)
-    num_classes = len(tags)
+    num_classes = len(tags)+1
     df["label"] = df["label"].apply(lambda x: clean_tags(x, tags, num_classes))
 
     labels = [x for x in range(len(tags))]
     df = df.drop(df[~df["label"].isin(labels)].index)
     print(df.head(5))
-    return df, num_classes
+    return df, num_classes-1
 
 def get_dataset():
     df, num_classes = prepare_dataframe()

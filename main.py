@@ -52,8 +52,7 @@ def train(train_dataloader, model, optimizer, config ):
         optimizer.step()
 
         # Compute accuracy for monitoring
-        correct = output_dict['predictions'] == batch['label']
-        accuracy.update(correct)
+        accuracy.update(output_dict['predictions'],batch['label'])
 
         progress_bar.set_description(f'Acc: {accuracy.get():.3f}')
 
@@ -72,8 +71,7 @@ def validate(val_dataloader, model, config, best_val_accuracy):
         output_dict = model(**batch)
 
         # Compute accuracy for monitoring
-        correct = output_dict['predictions'] == batch['label']
-        accuracy.update(correct)
+        accuracy.update(output_dict['predictions'], batch['label'])
 
         progress_bar.set_description(f'Acc: {accuracy.get():.3f}')
 
