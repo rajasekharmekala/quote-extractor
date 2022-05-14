@@ -3,6 +3,7 @@ import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
 
+from utils import logger
 def epub2thtml(epub_path):
     book = epub.read_epub(epub_path)
     chapters = []

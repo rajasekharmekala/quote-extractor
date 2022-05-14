@@ -10,7 +10,7 @@ from dataset import get_dataset
 
 from vocab import Vocabulary
 from model import Model
-from utils import Accuracy, tokenize, tokenize_instance
+from utils import Accuracy, tokenize, tokenize_instance, logger
 
 
 def infer(text, model, vocab, config, class_label):
@@ -22,7 +22,7 @@ def infer(text, model, vocab, config, class_label):
   output_dict = model(**inputs)
   predicted_label = output_dict['predictions'][0].item()
   predicted_label_str = class_label.int2str(predicted_label)
-  print(predicted_label_str)
+  logger.info(predicted_label_str)
 
 def tokens_to_ids(instance, vocab, config):
     return {'token_ids': vocab.map_tokens_to_ids(instance['tokens'], max_length=config.MAX_LENGTH)}
@@ -30,7 +30,7 @@ def tokens_to_ids(instance, vocab, config):
 
 def train(train_dataloader, model, optimizer, config ):
     # Training loop
-    print('Train')
+    logger.info('Train')
     model.train() # THIS PART IS VERY IMPORTANT TO SET BEFORE TRAINING
     accuracy = Accuracy()
 
@@ -57,7 +57,7 @@ def train(train_dataloader, model, optimizer, config ):
         progress_bar.set_description(f'Acc: {accuracy.get():.3f}')
 
 def validate(val_dataloader, model, config, best_val_accuracy):
-    print('Validate')
+    logger.info('Validate')
     model.eval() # THIS PART IS VERY IMPORTANT TO SET BEFORE EVALUATION
     accuracy = Accuracy()
 
@@ -77,7 +77,7 @@ def validate(val_dataloader, model, config, best_val_accuracy):
 
     val_accuracy = accuracy.get()
     if val_accuracy > best_val_accuracy:
-        print('Best so far')
+        logger.info('Best so far')
         torch.save(model.state_dict(), 'ckpt.pt')
         best_val_accuracy = val_accuracy
     return best_val_accuracy
@@ -86,10 +86,10 @@ def prepare_data(config):
     # train_data = datasets.load_dataset('tweet_eval', name='emoji', split='train')
     # val_data = datasets.load_dataset('tweet_eval', name='emoji', split='validation')
     # test_data = datasets.load_dataset('tweet_eval', name='emoji', split='test')
-    # print(train_data)
+    # logger.info(train_data)
     dataset = get_dataset()
     train_data, val_data, test_data, num_classes = dataset["train"], dataset["valid"], dataset["test"], dataset["num_classes"]
-    print("features: ", train_data.info.features)
+    logger.info("features: " + str(train_data.info.features))
 
     train_data = train_data.map(tokenize_instance)
     val_data = val_data.map(tokenize_instance)
@@ -129,7 +129,7 @@ def main():
     config.HIDDEN_DIM = 128
     config.LEARNING_RATE = 3e-4
     config.DEVICE = 'cuda' if  torch.cuda.is_available() else 'cpu'
-    print(f"Running on {config.DEVICE}")
+    logger.info(f"Running on {config.DEVICE}")
 
 
     train_data, val_data, test_data, vocab, num_classes = prepare_data(config)
@@ -149,7 +149,7 @@ def main():
 
     best_val_accuracy = 0.0
     for epoch in range(config.EPOCHS):
-        print('\nEpoch', epoch)
+        logger.info('\nEpoch' + str(epoch))
         train(train_dataloader, model, optimizer, config)
         best_val_accuracy  = validate(val_dataloader, model, config, best_val_accuracy)
 
