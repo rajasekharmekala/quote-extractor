@@ -48,6 +48,21 @@ class Vocabulary():
         return [self.map_token_to_id(token) for token in tokens]
     
 
+    def map_tokens_to_encodings(self, tokens: list, max_length: int = None):
+        """ Maps a list of tokens to a list of token IDs """
+        # truncate extra tokens and pad to `max_length`
+        if max_length:
+            tokens = tokens[:max_length]
+            tokens = tokens + [self.pad_token]*(max_length-len(tokens))
+        return [chr(self.map_token_to_id(token)) for token in tokens]
+
+    def map_encodings_to_tokens(self, chars: list, filter_padding=True):
+        """ Maps a list of token IDs to a list of token """
+        tokens = [self.map_id_to_token(ord(char)) for char in chars]
+        if filter_padding:
+            tokens = [t for t in tokens if t != self.pad_token]
+        return tokens
+
 
     def map_ids_to_tokens(self, ids: list, filter_padding=True):
         """ Maps a list of token IDs to a list of token """

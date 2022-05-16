@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import ast
 import json
-
+import re
+import unidecode
 
 from utils import logger
 
@@ -68,7 +69,10 @@ def prepare_stage1_dataframe():
     df.columns= df.columns.str.lower()
     df.rename(columns = {'tags':'label', 'quote': 'text'}, inplace = True)
 
-    df["text"] = df["text"].apply(lambda sentence: sentence.strip('"'))
+    df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace('“','"').replace('”','"').strip('"').lower()) )
+    # df["title"] = df["title"].apply(lambda title: title.replace(":", ""))
+    df["title"] = df["title"].apply(lambda title: re.sub(r"[:|']", "", title) )
+    
 
     tags = get_tags(df, min_count = 1000)
 
@@ -79,7 +83,7 @@ def prepare_stage1_dataframe():
     df["label"] = df["label"].apply(lambda x: clean_tags(x, tags, num_classes))
 
     labels = [x for x in range(len(tags))]
-    df = df.drop(df[~df["label"].isin(labels)].index)
+    # df = df.drop(df[~df["label"].isin(labels)].index)
     logger.info(df.head(5))
     return df, num_classes-1
 

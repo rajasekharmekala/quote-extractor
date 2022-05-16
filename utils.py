@@ -5,6 +5,7 @@ from tqdm import tqdm
 import json
 
 import logging
+import regex
 
 class Accuracy:
     def __init__(self):
@@ -58,8 +59,6 @@ def extract_lines(book_title):
 
     filepath = f"./data/books/epub/{book_title}.epub"
     _dict = epub2dict(filepath)
-    with open("sample.json", "w") as f:
-        f.write(json.dumps(_dict))
 
     df, _ = prepare_stage1_dataframe()
     res = df[df["title"] == book_title]["text"].tolist()
@@ -73,7 +72,38 @@ def extract_lines(book_title):
 
 
 def get_sentences_from_paragraph(text):
-    return text.split(".")
+    return [ sentence.replace('“','"').replace('”','"').strip().strip('"')  for sentence in text.split(".")]
+
+
+def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3):
+    # input = "Monalisa was painted by Leonrdo da Vinchi  abcdefghijklmnopqrst"
+    found_quotes = set()
+    matches = 0
+    sentences = 0
+    
+    for quote in quotes:
+        try:
+            x = regex.search(r'(%s){e<=%d}'%(quote,fuzzy_length), text,flags=regex.IGNORECASE)
+            if x is not None:
+                found_quotes.add(quote)
+                
+                matches+=1
+                try:
+                    match = x.group(0)
+                    words = quote.split(" ")
+                    match = match[match.index(words[0]): ]
+                    match = match[: match.rindex(words[-1]) +len(words[-1])]
+                    df.loc[len(df.index)] = [match,1 ]
+                except:
+                    match = x.group(0)
+                text = text.replace(match,"")
+        except:
+            pass
+    for sentence in text.split("."):
+        sentences+=1
+        df.loc[len(df.index)] = [sentence.strip(),0]
+    sentences+= matches
+    return quotes - found_quotes, matches, sentences
 
 
 def prepare_stage2_dataframe(path="./data/books/epub/"):
@@ -91,20 +121,26 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
         sen_in_book = 0
         matches = 0
         file_path = os.path.join(path, filename)
-        book_title = os.path.splitext(file_path)[0]
-
+        book_title = os.path.splitext(filename)[0]
+        print(book_title)
         stage_1_df, _ = prepare_stage1_dataframe()
         quotes_in_book =  set(stage_1_df[stage_1_df["title"] == book_title]["text"].tolist())
 
         _dict = epub2dict(file_path)
+        with open(f"metadata/{book_title}.json", "w") as f:
+            f.write(json.dumps(_dict))
+        # for chapter_name in ["OEBPS/part1.xhtml"]:
         for chapter_name in _dict:
-            for paragraph in _dict[chapter_name]:
-                sentences = get_sentences_from_paragraph(paragraph['text'])
-                sen_in_book += len(sentences)
-                for sentence in sentences:
-                    label =  1 if sentence in quotes_in_book else 0
-                    matches += label
-                    stage_2_df.loc[len(stage_2_df.index)] = [sentence,label ]
+            print("chapter: ", chapter_name)
+            quotes_in_book, _matches, sentences = add_sentence_label_pairs(_dict[chapter_name], quotes_in_book, stage_2_df)
+            matches += _matches
+            sen_in_book+= sentences
+            # print(matches)
+
+        with open(f"quotes/{book_title}.txt", "w") as f:
+            for q in quotes_in_book:
+                f.write(q)
+                f.write("\n")
 
         total_matches += matches
         total_quotes += len(quotes_in_book)
@@ -120,4 +156,5 @@ logger = get_logger("dataset")
 
 
 if __name__ == '__main__':
-    prepare_stage2_dataframe()
+    stage_2_df = prepare_stage2_dataframe()
+    stage_2_df.to_pickle("./stage_2_df.pkl")

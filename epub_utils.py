@@ -1,9 +1,9 @@
-from unicodedata import name
 import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
+import re
+import unidecode
 
-from utils import logger
 def epub2thtml(epub_path):
     book = epub.read_epub(epub_path)
     chapters = []
@@ -35,7 +35,10 @@ def chap2text(chap):
     text = soup.find_all(text=True)
     for t in text:
         if t.parent.name not in blacklist :
-            output += '{} '.format(t)
+            t = t.replace("\n", " ").lower()
+            t = unidecode.unidecode(re.sub('\s+',' ',t)).strip()
+            if len(t)>0:
+                output += '{} '.format(t)
     return output
 
 def chap2json(chap):
@@ -45,6 +48,7 @@ def chap2json(chap):
 
     for el in elements:
         text = el.get_text().replace("\n", " ").strip().lower()
+        text = unidecode.unidecode(re.sub('\s+',' ',text))
         if text != "":
             list.append({"name": el.name, "text": text })
     # for t in text:
@@ -58,8 +62,8 @@ def chap2json(chap):
 def thtml2dict(thtml, names):
     Output = {}
     for i, _ in enumerate(thtml):
-        list =  chap2json(thtml[i])
-        Output[names[i]] = list
+        text =  chap2text(thtml[i])
+        Output[names[i]] = text
     return Output
 
 def epub2dict(epub_path):
@@ -70,8 +74,10 @@ def epub2dict(epub_path):
 
 # if __name__ == '__main__':
 #     import os
+#     import json
 #     _set = set()
 #     for file in os.listdir("./data/books/epub/"):
 #         print(file)
-#         epub2dict("./data/books/epub/" + file)
+#         with open("sample.json", "w") as f:
+#             f.write(json.dumps(epub2dict("./data/books/epub/" + file)))
 #     print(_set)
