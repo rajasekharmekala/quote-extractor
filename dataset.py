@@ -69,7 +69,7 @@ def prepare_stage1_dataframe():
     df.columns= df.columns.str.lower()
     df.rename(columns = {'tags':'label', 'quote': 'text'}, inplace = True)
 
-    df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace('“','"').replace('”','"').strip('"').lower()) )
+    df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace("\n  ―", "").replace('“','"').replace('”','"').strip(" ").strip('"').lower()) )
     # df["title"] = df["title"].apply(lambda title: title.replace(":", ""))
     df["title"] = df["title"].apply(lambda title: re.sub(r"[:|']", "", title) )
     

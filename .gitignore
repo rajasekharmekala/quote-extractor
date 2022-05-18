@@ -13,3 +13,5 @@ Logs/*
 *.pkl
 sample.json
 test.py
+*.ipynb
+dataframes/*
