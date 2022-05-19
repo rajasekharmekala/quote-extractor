@@ -5,10 +5,11 @@ from tqdm import tqdm
 import json
 import spacy
 import textacy
-
 import logging
 import regex
+
 from pattern_search import search_and_add_quotes, search_and_add_quotes2
+
 class Accuracy:
     def __init__(self):
         self.correct = 0
@@ -88,14 +89,33 @@ def extract_lines(book_title):
 def get_sentences_from_paragraph(text):
     return [ sentence.replace('“','"').replace('”','"').strip().strip('"')  for sentence in text.split(".")]
 
+def remove_duplicates(quotes):
+    print("initial length: ", len(quotes))
+    sorted_quotes = sorted(quotes, key=len)
+    duplicate = set()
+    unique = set()
+    for i, quote in enumerate(sorted_quotes):
+        if(len(quote.split(" ")) <5): continue
+        if quote in duplicate: continue
+        for item in sorted_quotes[i+1:]:
+            try:
+                x = regex.search(r'(%s){e<=%d}'%(quote,3), item,flags=regex.IGNORECASE)
+                if x is not None:
+                    duplicate.add(item)
+            except:
+                pass
+        unique.add(quote)
+    print("final length: ", len(unique))
+    return unique
 
-def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3, min_sentence_tokens=15, verb_phrase_dict=None):
+def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3, min_sentence_tokens=15, verb_phrase_dict=None,chapter_name=None):
     # input = "Monalisa was painted by Leonrdo da Vinchi  abcdefghijklmnopqrst"
     found_quotes = set()
     matches = 0
     sentences = 0
+    sorted_quotes = sorted(list(quotes), key=len)
 
-    for quote in quotes:
+    for quote in sorted_quotes:
         try:
             x = regex.search(r'(%s){e<=%d}'%(quote,fuzzy_length), text,flags=regex.IGNORECASE)
             if x is not None:
@@ -106,7 +126,9 @@ def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3, min_sentence_toke
                     words = quote.split(" ")
                     match = match[match.index(words[0]): ]
                     match = match[: match.rindex(words[-1]) +len(words[-1])]
-                    df.loc[len(df.index)] = [match,1 ]
+                    if len(match)>0:
+                        start = text.index(match)
+                        df.loc[len(df.index)] = [match,1 , chapter_name, (start, start + len(match) )]
                 except:
                     match = x.group(0)
                 text = text.replace(match,"")
@@ -115,7 +137,7 @@ def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3, min_sentence_toke
     for sentence in text.split("."):
         if (len(sentence.split(" ")) < min_sentence_tokens ): continue
         sentences+=1
-        df.loc[len(df.index)] = [sentence.strip(),0]
+        df.loc[len(df.index)] = [sentence.strip(),0, chapter_name, None]
     sentences+= matches
     return quotes - found_quotes, matches, sentences, text
 
@@ -136,13 +158,13 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
     from epub_utils import epub2dict
     from dataset import prepare_stage1_dataframe
   
-    stage_2_df = pd.DataFrame({'text':[],'label':[]})
 
     progress_bar = tqdm(os.listdir(path))
     total_matches = 0
     total_sentences = 0
     total_quotes = 0
     for filename in progress_bar:
+        stage_2_df = pd.DataFrame({'text':[],'label':[] , 'chapter_name':[], 'pos':[]})
         if not filename.endswith(".epub"):
             continue
         sen_in_book = 0
@@ -151,11 +173,12 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
         book_title = os.path.splitext(filename)[0]
         print(book_title)
         stage_1_df, _ = prepare_stage1_dataframe()
-        quotes_in_book =  set(stage_1_df[stage_1_df["title"] == book_title]["text"].tolist())
+        quotes_in_book =  stage_1_df[stage_1_df["title"] == book_title]["text"].tolist()
+        quotes_in_book = remove_duplicates(quotes_in_book)
 
         quotes_in_cur_book = len(quotes_in_book) +1e-12
         total_quotes += quotes_in_cur_book
-        print("len", total_quotes)
+        print("len", quotes_in_cur_book, total_quotes)
         verb_phrase_dict = get_verbs_in_quotes(quotes_in_book)
         _dict = epub2dict(file_path)
         with open(f"metadata/{book_title}.json", "w") as f:
@@ -164,9 +187,7 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
         # for chapter_name in ["OEBPS/part1.xhtml"]:
         for chapter_name in _dict:
             print("chapter: ", chapter_name)
-            # quotes_in_book, _matches, sentences = add_sentence_label_pairs(_dict[chapter_name], quotes_in_book, stage_2_df)
-            quotes_in_book, _matches, sentences, remaining_text = add_sentence_label_pairs(_dict[chapter_name], quotes_in_book, stage_2_df, verb_phrase_dict=verb_phrase_dict)
-            # quotes_in_book, _matches, sentences, remaining_text = search_and_add_quotes2(remaining_text, quotes_in_book, stage_2_df, verb_phrase_dict)
+            quotes_in_book, _matches, sentences, remaining_text = add_sentence_label_pairs(_dict[chapter_name], quotes_in_book, stage_2_df, verb_phrase_dict=verb_phrase_dict, chapter_name=chapter_name)
             remaining_texts[chapter_name] = remaining_text
             matches += _matches
             sen_in_book+= sentences
@@ -174,8 +195,7 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
 
         # for chapter_name in remaining_texts:
         #     print("chapter: ", chapter_name)
-        #     # quotes_in_book, _matches, sentences = add_sentence_label_pairs(_dict[chapter_name], quotes_in_book, stage_2_df)
-        #     quotes_in_book, _matches, sentences, remaining_text = search_and_add_quotes2(remaining_texts[chapter_name], quotes_in_book, stage_2_df, verb_phrase_dict)
+        #     quotes_in_book, _matches, sentences, remaining_text = search_and_add_quotes2(remaining_texts[chapter_name], quotes_in_book, stage_2_df, verb_phrase_dict, chapter_name=chapter_name)
         #     remaining_texts[chapter_name] = remaining_text
         #     matches += _matches
         #     sen_in_book+= sentences
@@ -205,5 +225,4 @@ logger = get_logger("dataset")
 
 
 if __name__ == '__main__':
-    stage_2_df = prepare_stage2_dataframe()
-    stage_2_df.to_pickle("./stage_2_df.pkl")
+    prepare_stage2_dataframe()
