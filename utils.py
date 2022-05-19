@@ -12,7 +12,7 @@ from pattern_search import search_and_add_quotes, search_and_add_quotes2
 class Accuracy:
     def __init__(self):
         self.correct = 0
-        self.total = 0
+        self.total = 1e-12
 
     def update(self, predictions, labels):
         correct = predictions == labels
@@ -22,6 +22,18 @@ class Accuracy:
     def get(self):
         return self.correct / self.total
 
+class Recall:
+    def __init__(self):
+        self.correct = 0
+        self.total = 1e-12
+
+    def update(self, predictions, labels):
+        correct = predictions[labels==1]
+        self.correct += correct.sum().item()
+        self.total += correct.shape[0]
+
+    def get(self):
+        return self.correct / self.total
 
 def tokenize(string: str):
     """Tokenizes an input string."""

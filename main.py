@@ -10,7 +10,7 @@ from dataset import get_dataset
 
 from vocab import Vocabulary
 from model import Model
-from utils import Accuracy, tokenize, tokenize_instance, logger
+from utils import Accuracy, Recall, tokenize, tokenize_instance, logger
 
 
 def infer(text, model, vocab, config, class_label):
@@ -33,6 +33,7 @@ def train(train_dataloader, model, optimizer, config ):
     logger.info('Train')
     model.train() # THIS PART IS VERY IMPORTANT TO SET BEFORE TRAINING
     accuracy = Accuracy()
+    recall = Recall()
 
     progress_bar = tqdm(train_dataloader)
     for batch in progress_bar:
@@ -53,13 +54,15 @@ def train(train_dataloader, model, optimizer, config ):
 
         # Compute accuracy for monitoring
         accuracy.update(output_dict['predictions'],batch['label'])
+        recall.update(output_dict['predictions'],batch['label'])
 
-        progress_bar.set_description(f'Acc: {accuracy.get():.3f}')
+        progress_bar.set_description(f'Acc: {accuracy.get():.3f}, Recall: {recall.get():.3f}')
 
-def validate(val_dataloader, model, config, best_val_accuracy):
+def validate(val_dataloader, model, config, best_val_recall):
     logger.info('Validate')
     model.eval() # THIS PART IS VERY IMPORTANT TO SET BEFORE EVALUATION
     accuracy = Accuracy()
+    recall = Recall()
 
     progress_bar = tqdm(val_dataloader)
     for batch in progress_bar:
@@ -72,15 +75,16 @@ def validate(val_dataloader, model, config, best_val_accuracy):
 
         # Compute accuracy for monitoring
         accuracy.update(output_dict['predictions'], batch['label'])
+        recall.update(output_dict['predictions'],batch['label'])
 
-        progress_bar.set_description(f'Acc: {accuracy.get():.3f}')
+        progress_bar.set_description(f'Acc: {accuracy.get():.3f}, Recall: {recall.get():.3f}')
 
-    val_accuracy = accuracy.get()
-    if val_accuracy > best_val_accuracy:
+    val_recall = recall.get()
+    if val_recall > best_val_recall:
         logger.info('Best so far')
         torch.save(model.state_dict(), 'ckpt.pt')
-        best_val_accuracy = val_accuracy
-    return best_val_accuracy
+        best_val_recall = val_recall
+    return best_val_recall
 
 def prepare_data(config):
     # train_data = datasets.load_dataset('tweet_eval', name='emoji', split='train')
@@ -147,11 +151,11 @@ def main():
     # test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=config.BATCH_SIZE)
 
 
-    best_val_accuracy = 0.0
+    best_val_recall = 0.0
     for epoch in range(config.EPOCHS):
         logger.info('\nEpoch' + str(epoch))
         train(train_dataloader, model, optimizer, config)
-        best_val_accuracy  = validate(val_dataloader, model, config, best_val_accuracy)
+        best_val_recall  = validate(val_dataloader, model, config, best_val_recall)
 
 
     # Load the best model checkpoint
