@@ -4,9 +4,10 @@ import random
 import pandas as pd
 from IPython.display import display, HTML
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering, TrainingArguments, Trainer, default_data_collator
-
 import numpy as np
 import collections
+
+from dataset import prepare_qa_dataset
 
 def show_random_elements(dataset, num_examples=10):
     assert num_examples <= len(dataset), "Can't pick more elements than there are in the dataset."
@@ -238,14 +239,15 @@ if __name__ == '__main__':
     model_checkpoint = "distilbert-base-uncased"
     batch_size = 16
     
-    datasets = load_dataset("squad_v2" if squad_v2 else "squad")
+    # datasets = load_dataset("squad_v2" if squad_v2 else "squad")
+    datasets= prepare_qa_dataset()
 
     show_random_elements(datasets["train"])
 
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 
-    max_length = 384 # The maximum length of a feature (question and context)
+    max_length = 500 # The maximum length of a feature (question and context)
     doc_stride = 128 # The authorized overlap between two part of the context when splitting it is needed.
     pad_on_right = tokenizer.padding_side == "right"
     
@@ -262,7 +264,6 @@ if __name__ == '__main__':
         per_device_eval_batch_size=batch_size,
         num_train_epochs=3,
         weight_decay=0.01,
-        device= 'cuda',
         push_to_hub=False,
     )
     
@@ -272,7 +273,7 @@ if __name__ == '__main__':
     model,
     args,
     train_dataset=tokenized_datasets["train"],
-    eval_dataset=tokenized_datasets["validation"],
+    eval_dataset=tokenized_datasets["valid"],
     data_collator=data_collator,
     tokenizer=tokenizer,
     )
@@ -281,21 +282,21 @@ if __name__ == '__main__':
 
     ## Evaluation
 
-    validation_features = datasets["validation"].map(
+    validation_features = datasets["valid"].map(
         prepare_validation_features,
         batched=True,
-        remove_columns=datasets["validation"].column_names
+        remove_columns=datasets["valid"].column_names
     )
 
     raw_predictions = trainer.predict(validation_features)
 
     validation_features.set_format(type=validation_features.format["type"], columns=list(validation_features.features.keys()))
-    final_predictions = postprocess_qa_predictions(datasets["validation"], validation_features, raw_predictions.predictions)
+    final_predictions = postprocess_qa_predictions(datasets["valid"], validation_features, raw_predictions.predictions)
     metric = load_metric("squad_v2" if squad_v2 else "squad")
 
     if squad_v2:
         formatted_predictions = [{"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in final_predictions.items()]
     else:
         formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]
-    references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["validation"]]
-    metric.compute(predictions=formatted_predictions, references=references)
+    references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["valid"]]
+    print(metric.compute(predictions=formatted_predictions, references=references))

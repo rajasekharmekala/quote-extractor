@@ -12,6 +12,8 @@ quotes/*
 Logs/*
 *.pkl
 sample.json
-test.py
+test*.py
 *.ipynb
 dataframes/*
+wandb/*
+test-squad-trained/*

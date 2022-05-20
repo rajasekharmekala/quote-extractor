@@ -220,9 +220,112 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
         if matches >0 : stage_2_df.to_pickle(f"./dataframes/stage_2_{book_title}.pkl")
     return stage_2_df
 
+def add_to_qa_df(text, quotes, df, fuzzy_length=3, block_size=500, stride=100,chapter_name=None, book_title = None, tokenizer = None):
+    # input = "Monalisa was painted by Leonrdo da Vinchi  abcdefghijklmnopqrst"
+    found_quotes = set()
+    matches = 0
+    sorted_quotes = sorted(list(quotes), key=len)
+
+
+    if tokenizer is None:
+        raise("Tokenizer not found")
+
+    subword_tokens = tokenizer(text)["input_ids"]
+    
+    prevEnd = 0
+    texts = {}
+    count = 0
+    subword_tokens = subword_tokens[1:-1]
+    while prevEnd < len(subword_tokens):
+        start = max(0, prevEnd - stride)
+        texts[count] = {
+            "text": tokenizer.decode(subword_tokens[start:start+ block_size]),
+            "startIndices":[],
+            "quotes":[] 
+        } 
+        count+=1
+        prevEnd = start+block_size
+
+
+    for quote in sorted_quotes:
+        try:
+            x = regex.search(r'(%s){e<=%d}'%(quote,fuzzy_length), text,flags=regex.IGNORECASE)
+            if x is not None:
+                found_quotes.add(quote)
+                print("-------------, found")
+                matches+=1
+                try:
+                    match = x.group(0)
+                    words = quote.split(" ")
+                    match = match[match.index(words[0]): ]
+                    match = match[: match.rindex(words[-1]) +len(words[-1])]
+                    if len(match)>0:
+                        for idx in texts:
+                            try:
+                                start = texts[idx]["text"].index(match)
+                                texts[idx]["startIndices"].append(start)
+                                texts[idx]["quotes"].append(match)
+                            except:
+                                pass
+                except:
+                    match = x.group(0)
+                text = text.replace(match,"")
+        except:
+            pass
+    for idx in texts:
+        df.loc[len(df.index)] = [book_title, chapter_name, texts[idx]["text"] ,texts[idx]["startIndices"], texts[idx]["quotes"] ]
+    return quotes - found_quotes, matches
+
+        
+
+
+def prepare_qa_dataframe(path="./data/books/epub/"):
+
+    from epub_utils import epub2dict
+    from dataset import prepare_stage1_dataframe
+
+    from transformers import AutoTokenizer
+
+    model_checkpoint = "distilbert-base-uncased"
+    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+
+    qa_df = pd.DataFrame({'book_title': [], 'chapter_name':[], 'context':[],'answer_start':[], "text":[]})
+
+    progress_bar = tqdm(os.listdir(path))
+    total_matches = 0
+    total_quotes = 0
+    for filename in progress_bar:
+        if not filename.endswith(".epub"):
+            continue
+        matches = 0
+        file_path = os.path.join(path, filename)
+        book_title = os.path.splitext(filename)[0]
+        progress_bar.set_description("Title: "+ book_title)
+
+        stage_1_df, _ = prepare_stage1_dataframe()
+        quotes_in_book =  set(stage_1_df[stage_1_df["title"] == book_title]["text"].tolist())
+
+        quotes_in_cur_book = len(quotes_in_book) +1e-12
+        total_quotes += quotes_in_cur_book
+        print("len", total_quotes)
+
+        _dict = epub2dict(file_path)
+        with open(f"metadata/{book_title}.json", "w") as f:
+            f.write(json.dumps(_dict))
+
+        for chapter_name in _dict:
+            print("chapter: ", chapter_name)
+            quotes_in_book, _matches = add_to_qa_df(_dict[chapter_name], quotes_in_book, qa_df, tokenizer=tokenizer, chapter_name=chapter_name, book_title= book_title)
+            matches += _matches
+
+        total_matches += matches
+        print("Matches: ", matches)
+        progress_bar.set_description(f'Matches: { total_matches/total_quotes:.3f} {book_title} Matches: { matches/quotes_in_cur_book:.3f}')
+        if matches >0 : qa_df.to_pickle(f"./dataframes_qa/{book_title}.pkl")
+    return qa_df
 
 logger = get_logger("dataset")
 
 
 if __name__ == '__main__':
-    prepare_stage2_dataframe()
+    prepare_qa_dataframe()

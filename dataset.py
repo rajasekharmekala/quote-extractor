@@ -8,6 +8,7 @@ import ast
 import json
 import re
 import unidecode
+import os
 
 from utils import logger
 
@@ -87,7 +88,7 @@ def prepare_stage1_dataframe():
     logger.info(df.head(5))
     return df, num_classes-1
 
-def get_dataset():
+def get_dataset_stage1_old():
     df, num_classes = prepare_stage1_dataframe()
     logger.info("Dataset shape: " + str(df.shape))
     dataset = Dataset.from_pandas(df)
@@ -98,6 +99,56 @@ def get_dataset():
         'test': test_valid['test'],
         'valid': test_valid['train'],
         'num_classes': num_classes })
+    return train_test_valid_dataset
+
+def get_dataset():
+
+    df = pd.read_pickle("./dataframes_old/stage_2_A Clash of Kings.pkl")
+    num_classes=2
+    np.random.seed(10)
+
+    negative_indices = df[df["label"]==0].index
+    remove_n = int(0.7 * len(negative_indices))
+    drop_indices = np.random.choice(negative_indices, remove_n, replace=False)
+    df = df.drop(drop_indices)
+
+    logger.info("Dataset shape: " + str(df.shape))
+    print("Positive: ", len(df[df["label"]==1]), "Negative: ", len(df[df["label"]==0])  )
+    dataset = Dataset.from_pandas(df)
+    train_testvalid = dataset.train_test_split(test_size=0.2)
+    test_valid = train_testvalid['test'].train_test_split(test_size=0.5)
+    train_test_valid_dataset = DatasetDict({
+        'train': train_testvalid['train'],
+        'test': test_valid['test'],
+        'valid': test_valid['train'],
+        'num_classes': num_classes })
+    return train_test_valid_dataset
+
+
+def prepare_qa_dataset(folder_path= "./dataframes_qa/"):
+    df = None
+    for file in os.listdir(folder_path):
+        filepath = os.path.join(folder_path, file)
+        new_frame = pd.read_pickle(filepath)
+        if df is None:
+            df = new_frame
+        else:
+            df = pd.concat([df, new_frame], ignore_index = True)
+    
+    df["question"] = ""
+    df["id"] = df.index + 1
+    df["answers"] = df.apply( lambda x: {"answer_start": x[3], "text": x[4]}, axis=1)
+
+    df.to_pickle("qa_df.pkl")
+
+    dataset = Dataset.from_pandas(df)
+    train_testvalid = dataset.train_test_split(test_size=0.2)
+    test_valid = train_testvalid['test'].train_test_split(test_size=0.5)
+    train_test_valid_dataset = DatasetDict({
+        'train': train_testvalid['train'],
+        'test': test_valid['test'],
+        'valid': test_valid['train']
+        })
     return train_test_valid_dataset
 
 if __name__ == '__main__':
