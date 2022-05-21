@@ -233,8 +233,8 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
 
     return predictions
 
-if __name__ == '__main__':
-    print(transformers.__version__)
+def main():
+        print(transformers.__version__)
     squad_v2 = False
     model_checkpoint = "distilbert-base-uncased"
     batch_size = 16
@@ -266,7 +266,9 @@ if __name__ == '__main__':
         weight_decay=0.01,
         push_to_hub=False,
     )
-    
+    print("---------------------------------")
+    print("Device: ", args.device) 
+
     data_collator = default_data_collator
 
     trainer = Trainer(
@@ -305,3 +307,6 @@ if __name__ == '__main__':
 
     references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["valid"]]
     print(metric.compute(predictions=formatted_predictions, references=references))
+
+if __name__ == '__main__':
+    main()
