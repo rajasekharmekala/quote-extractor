@@ -297,6 +297,11 @@ if __name__ == '__main__':
     if squad_v2:
         formatted_predictions = [{"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in final_predictions.items()]
     else:
-        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]
+        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]    
+
+    datasets["valid"].save_to_disk("validation_dataset")
+    with open('formatted_predictions.txt', 'w') as f:
+        f.write(str(formatted_predictions))
+
     references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["valid"]]
     print(metric.compute(predictions=formatted_predictions, references=references))
