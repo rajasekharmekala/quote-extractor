@@ -233,8 +233,8 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
 
     return predictions
 
-def main():
-        print(transformers.__version__)
+if __name__ == '__main__':
+    print(transformers.__version__)
     squad_v2 = False
     model_checkpoint = "distilbert-base-uncased"
     batch_size = 16
@@ -306,7 +306,18 @@ def main():
         f.write(str(formatted_predictions))
 
     references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["valid"]]
-    print(metric.compute(predictions=formatted_predictions, references=references))
 
-if __name__ == '__main__':
-    main()
+    if squad_v2:
+        print("SQUAD_V2 evaluation")
+        print(metric.compute(predictions=formatted_predictions, references=references))
+    else:
+        non_zero_references =[]
+        predictions =[]
+
+        for ref, pred in zip(references, formatted_predictions):
+            if len(ref['answers']['text'])>0:
+                non_zero_references.append(ref)
+                predictions.append(pred)
+        print("SQUADV1 evaluation")
+        print(metric.compute(predictions=predictions, references=non_zero_references))
+

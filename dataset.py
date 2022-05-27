@@ -129,7 +129,7 @@ def prepare_qa_dataset(folder_path= "./dataframes_qa/"):
     df = None
     for file in os.listdir(folder_path):
         filepath = os.path.join(folder_path, file)
-        new_frame = pd.read_pickle(filepath)
+        new_frame = pd.read_json(filepath)
         if df is None or len(df)<len(new_frame):
             df = new_frame
     
