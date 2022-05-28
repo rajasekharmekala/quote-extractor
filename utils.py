@@ -124,13 +124,18 @@ def add_sentence_label_pairs(text, quotes, df, fuzzy_length=3, min_sentence_toke
                 try:
                     match = x.group(0)
                     words = quote.split(" ")
-                    match = match[match.index(words[0]): ]
-                    match = match[: match.rindex(words[-1]) +len(words[-1])]
+                    start_string = words[0]
+                    match = match[match.index(start_string): ]
+                    match = match[: len(quote)]
                     if len(match)>0:
                         start = text.index(match)
                         df.loc[len(df.index)] = [match,1 , chapter_name, (start, start + len(match) )]
                 except:
                     match = x.group(0)
+                    # print("----------------------------------------")
+                    # print("Match: ",match)
+                    # print("Quote: ",quote)
+                    # print("----------------------------------------")
                 text = text.replace(match,"")
         except:
             pass
@@ -258,7 +263,7 @@ def add_to_qa_df(text, quotes, df, fuzzy_length=3, block_size=500, stride=100,ch
                     match = x.group(0)
                     words = quote.split(" ")
                     match = match[match.index(words[0]): ]
-                    match = match[: match.rindex(words[-1]) +len(words[-1])]
+                    match = match[: len(quote)]
                     if len(match)>0:
                         for idx in texts:
                             try:
