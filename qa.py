@@ -6,10 +6,13 @@ from IPython.display import display, HTML
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering, TrainingArguments, Trainer, default_data_collator
 import numpy as np
 import collections
+import argparse
 
 from dataset import prepare_qa_dataset
 
 def show_random_elements(dataset, num_examples=10):
+    print("+++++++++++++++++++++++")
+    print(len(dataset))
     assert num_examples <= len(dataset), "Can't pick more elements than there are in the dataset."
     picks = []
     for _ in range(num_examples):
@@ -234,9 +237,17 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
     return predictions
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-sv2', '--squadv2', action='store_true')
+    parser.add_argument('-b', '--backbone', help='pretrained model name', default='distilbert-base-uncased') #"roberta-base"
+    _args = parser.parse_args()
+
     print(transformers.__version__)
-    squad_v2 = False
-    model_checkpoint = "distilbert-base-uncased"
+    squad_v2 = _args.squadv2
+    print("SquAD V2: ", squad_v2)
+    print("Pretrained Model: ", _args.backbone)
+    model_checkpoint = _args.backbone
     batch_size = 16
     
     # datasets = load_dataset("squad_v2" if squad_v2 else "squad")
@@ -266,7 +277,9 @@ if __name__ == '__main__':
         weight_decay=0.01,
         push_to_hub=False,
     )
-    
+    print("---------------------------------")
+    print("Device: ", args.device) 
+
     data_collator = default_data_collator
 
     trainer = Trainer(
@@ -297,6 +310,25 @@ if __name__ == '__main__':
     if squad_v2:
         formatted_predictions = [{"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in final_predictions.items()]
     else:
-        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]
+        formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]    
+
+    datasets["valid"].save_to_disk("validation_dataset")
+    with open('formatted_predictions.txt', 'w') as f:
+        f.write(str(formatted_predictions))
+
     references = [{"id": ex["id"], "answers": ex["answers"]} for ex in datasets["valid"]]
-    print(metric.compute(predictions=formatted_predictions, references=references))
+
+    if squad_v2:
+        print("SQUAD_V2 evaluation")
+        print(metric.compute(predictions=formatted_predictions, references=references))
+    else:
+        non_zero_references =[]
+        predictions =[]
+
+        for ref, pred in zip(references, formatted_predictions):
+            if len(ref['answers']['text'])>0:
+                non_zero_references.append(ref)
+                predictions.append(pred)
+        print("SQUADV1 evaluation")
+        print(metric.compute(predictions=predictions, references=non_zero_references))
+

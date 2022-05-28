@@ -294,12 +294,11 @@ def prepare_qa_dataframe(path="./data/books/epub/"):
     model_checkpoint = "distilbert-base-uncased"
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
-    qa_df = pd.DataFrame({'book_title': [], 'chapter_name':[], 'context':[],'answer_start':[], "text":[]})
-
     progress_bar = tqdm(os.listdir(path))
     total_matches = 0
     total_quotes = 0
     for filename in progress_bar:
+        qa_df = pd.DataFrame({'book_title': [], 'chapter_name':[], 'context':[],'answer_start':[], "text":[]})
         if not filename.endswith(".epub"):
             continue
         matches = 0
@@ -327,7 +326,6 @@ def prepare_qa_dataframe(path="./data/books/epub/"):
         print("Matches: ", matches)
         progress_bar.set_description(f'Matches: { total_matches/total_quotes:.3f} {book_title} Matches: { matches/quotes_in_cur_book:.3f}')
         if matches >0 : qa_df.to_pickle(f"./dataframes_qa/{book_title}.pkl")
-    return qa_df
 
 logger = get_logger("dataset")
 
