@@ -239,15 +239,15 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-sv2', '--squadv2', help='True if using squad version 2', default=False)
+    parser.add_argument('-sv2', '--squadv2', action='store_true')
     parser.add_argument('-b', '--backbone', help='pretrained model name', default='distilbert-base-uncased') #"roberta-base"
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     print(transformers.__version__)
-    print("SquAD V2: ", args.squadv2)
-    print("Pretrained Model: ", args.backbone)
-    squad_v2 = args.squadv2
-    model_checkpoint = args.backbone
+    squad_v2 = _args.squadv2
+    print("SquAD V2: ", squad_v2)
+    print("Pretrained Model: ", _args.backbone)
+    model_checkpoint = _args.backbone
     batch_size = 16
     
     # datasets = load_dataset("squad_v2" if squad_v2 else "squad")
