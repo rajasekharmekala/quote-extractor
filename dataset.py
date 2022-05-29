@@ -119,7 +119,13 @@ def concat_df_from_folder(folder_path="./dataframes/"):
     return df
 
 def get_dataset():
-    df = concat_df_from_folder("./dataframes/")
+    df = None
+    if os.path.exists("dataframes_json/stage1_df.json"):
+        df = pd.read_json("dataframes_json/stage1_df.json")
+    else:
+        df = concat_df_from_folder("./dataframes/")
+        df.to_json("dataframes_json/stage1_df.json")
+    
     df = df.drop(columns=['pos'])
 
     num_classes=2
