@@ -61,7 +61,11 @@ def clean_tags(tag, tags, num_classes):
             pass
     return num_classes -1
     
-
+def replace_book_titles(df, replace_book_titles):
+    with open(replace_book_titles, 'r') as file:
+        for line in file:
+            line = line.rstrip()
+            df["title"].replace({line.split('->')[0]: line.split('->')[1]}, inplace=True)
 
 def prepare_stage1_dataframe():
     connection = sqlite3.connect('./data/quotes.sqlite')
@@ -73,7 +77,8 @@ def prepare_stage1_dataframe():
     df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace("\n  ―", "").replace('“','"').replace('”','"').strip(" ").strip('"').lower()) )
     # df["title"] = df["title"].apply(lambda title: title.replace(":", ""))
     df["title"] = df["title"].apply(lambda title: re.sub(r"[:|']", "", title) )
-    
+    replace_book_titles(df, "replace_book_titles.txt")
+    #print(df["title"].unique().tolist())
 
     tags = get_tags(df, min_count = 1000)
 

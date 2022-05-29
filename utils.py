@@ -95,7 +95,7 @@ def remove_duplicates(quotes):
     duplicate = set()
     unique = set()
     for i, quote in enumerate(sorted_quotes):
-        if(len(quote.split(" ")) <5): continue
+        if(len(quote.split(" ")) <5): continue # not removing > 350 characters?
         if quote in duplicate: continue
         for item in sorted_quotes[i+1:]:
             try:
@@ -163,6 +163,7 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
     total_matches = 0
     total_sentences = 0
     total_quotes = 0
+    stage_1_df, _ = prepare_stage1_dataframe() # loading df
     for filename in progress_bar:
         stage_2_df = pd.DataFrame({'text':[],'label':[] , 'chapter_name':[], 'pos':[]})
         if not filename.endswith(".epub"):
@@ -171,9 +172,8 @@ def prepare_stage2_dataframe(path="./data/books/epub/"):
         matches = 0
         file_path = os.path.join(path, filename)
         book_title = os.path.splitext(filename)[0]
-        print(book_title)
-        stage_1_df, _ = prepare_stage1_dataframe()
-        quotes_in_book =  stage_1_df[stage_1_df["title"] == book_title]["text"].tolist()
+        #print(book_title)
+        quotes_in_book =  stage_1_df[stage_1_df["title"].str.lower() == book_title.lower()]["text"].tolist() # add lower()
         quotes_in_book = remove_duplicates(quotes_in_book)
 
         quotes_in_cur_book = len(quotes_in_book) +1e-12
@@ -326,4 +326,4 @@ logger = get_logger("dataset")
 
 
 if __name__ == '__main__':
-    prepare_qa_dataframe()
+    prepare_stage2_dataframe()
