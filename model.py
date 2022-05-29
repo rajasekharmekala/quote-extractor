@@ -91,7 +91,7 @@ class Model(torch.nn.Module):
 
         # Compute loss if labels are provided
         if label is not None:
-            label = label.type(torch.LongTensor)
+            # label = label.type(torch.LongTensor)
             loss = torch.nn.functional.cross_entropy(input=logits, target=label)
             output_dict['loss'] = loss
 
