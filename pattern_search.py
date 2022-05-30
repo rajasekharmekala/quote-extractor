@@ -86,7 +86,7 @@ def tokenize(string: str):
 #     return quotes - found_quotes, matches, sentences
 
 
-def search_and_add_quotes(document, quotes, df, verb_phrase_dict, min_sentence_tokens = 5):
+def search_and_add_quotes(document, quotes, df, verb_phrase_dict, chapter_name, min_sentence_tokens = 5):
 
     found_quotes = set()
     matches = 0
@@ -107,10 +107,20 @@ def search_and_add_quotes(document, quotes, df, verb_phrase_dict, min_sentence_t
             fuzzy_length = 4
         else:
             fuzzy_length = 6
-        
-        startIndices = [m.start() for m in regex.finditer(quote_start_token, document)] if quote_start_token not in prev_start_lookup else prev_start_lookup[quote_start_token]
-        endIndices = [m.end() for m in regex.finditer(quote_end_token, document)] if quote_end_token not in prev_end_lookup else prev_end_lookup[quote_end_token]
-
+        if '(' in quote_start_token:
+            quote_start_token = quote_start_token.split('(')[1]
+        if ')' in quote_start_token:
+            quote_start_token = quote_start_token.split(')')[0]
+        if ')' in quote_end_token:
+            quote_end_token = quote_end_token.split(')')[0]
+        if '(' in quote_end_token:
+            quote_end_token = quote_end_token.split('(')[1]
+        try:
+            startIndices = [m.start() for m in regex.finditer(quote_start_token, document)] if quote_start_token not in prev_start_lookup else prev_start_lookup[quote_start_token]
+            endIndices = [m.end() for m in regex.finditer(quote_end_token, document)] if quote_end_token not in prev_end_lookup else prev_end_lookup[quote_end_token]
+        except:
+            #print("error:", quote, quote_start_token, quote_end_token)
+            continue
         for startIndex in startIndices:
             for endIndex in endIndices:
                 if(endIndex < startIndex) : continue
@@ -126,9 +136,9 @@ def search_and_add_quotes(document, quotes, df, verb_phrase_dict, min_sentence_t
 
                 if near_match_tokens(tokens, match_str_tokens, threshold=0.9):
                     matches+=1
-                    print("quote: ", quote)
-                    print("match: ", match_str)
-                    df.loc[len(df.index)] = [quote,1 ]
+                    #print("quote: ", quote)
+                    #print("match: ", match_str)
+                    df.loc[len(df.index)] = [quote,1,chapter_name,(startIndex, startIndex + len(quote) )] # change pos
                     found_quotes.add(quote)
 
                     document = document.replace(match_str,"")
@@ -136,11 +146,11 @@ def search_and_add_quotes(document, quotes, df, verb_phrase_dict, min_sentence_t
     for sentence in document.split("."):
         if (len(sentence.split(" ")) < min_sentence_tokens ): continue
         sentences+=1
-        df.loc[len(df.index)] = [sentence.strip(),0]
+        df.loc[len(df.index)] = [sentence.strip(),0,chapter_name,None]
     sentences+= matches
 
-    # print("found: ", found_quotes)
-    return quotes - found_quotes, matches, sentences
+    #print("found(second-level): ", found_quotes)
+    return quotes - found_quotes, matches, sentences, document
 
 
 def get_match_string(document, pattern):

@@ -73,9 +73,10 @@ def prepare_stage1_dataframe():
     df = pd.read_sql_query(r"SELECT * FROM quotes", connection)
     df.columns= df.columns.str.lower()
     df.rename(columns = {'tags':'label', 'quote': 'text'}, inplace = True)
-
+    #.replace('"',"'").replace("\'","'")
     df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace("\n  ―", "").replace('“','"').replace('”','"').strip(" ").strip('"').lower()) )
     # df["title"] = df["title"].apply(lambda title: title.replace(":", ""))
+    df["text"] = df["text"].apply(lambda sentence: re.sub(r"[ ]*[-]+[ ]*", " - ", sentence).strip() )
     df["title"] = df["title"].apply(lambda title: re.sub(r"[:|']", "", title) )
     replace_book_titles(df, "replace_book_titles.txt")
     #print(df["title"].unique().tolist())
