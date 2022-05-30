@@ -10,6 +10,8 @@ import argparse
 
 from dataset import prepare_qa_dataset
 
+from compare_classifier_with_squadv2 import compare_with_classifier
+
 def show_random_elements(dataset, num_examples=10):
     print("+++++++++++++++++++++++")
     print(len(dataset))
@@ -321,6 +323,7 @@ if __name__ == '__main__':
     if squad_v2:
         print("SQUAD_V2 evaluation")
         print(metric.compute(predictions=formatted_predictions, references=references))
+        compare_with_classifier(formatted_predictions, references)
     else:
         non_zero_references =[]
         predictions =[]
@@ -331,4 +334,10 @@ if __name__ == '__main__':
                 predictions.append(pred)
         print("SQUADV1 evaluation")
         print(metric.compute(predictions=predictions, references=non_zero_references))
+
+        print("Running squadV2 type evaluation also... ")
+        formatted_predictions = [{"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in final_predictions.items()]
+        metric = load_metric("squad_v2")
+        print(metric.compute(predictions=formatted_predictions, references=references))
+        compare_with_classifier(formatted_predictions, references)
 

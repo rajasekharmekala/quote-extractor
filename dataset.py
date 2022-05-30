@@ -107,21 +107,42 @@ def get_dataset_stage1_old():
         'num_classes': num_classes })
     return train_test_valid_dataset
 
-def get_dataset():
+def concat_df_from_folder(folder_path="./dataframes/"):
+    df = None
+    for file in os.listdir(folder_path):
+        print(file)
+        filepath = os.path.join(folder_path, file)
+        new_frame = pd.read_pickle(filepath)
+        if df is None:
+            df = new_frame
+        else:
+            df = pd.concat([df, new_frame], ignore_index = True)
+    return df
 
-    df = pd.read_pickle("./dataframes_old/stage_2_A Clash of Kings.pkl")
+def get_dataset():
+    df = None
+    if os.path.exists("dataframes_json/stage1_df.json"):
+        df = pd.read_json("dataframes_json/stage1_df.json")
+    else:
+        df = concat_df_from_folder("./dataframes/")
+        df.to_json("dataframes_json/stage1_df.json")
+    
+    df = df.drop(columns=['pos'])
+
     num_classes=2
     np.random.seed(10)
 
     negative_indices = df[df["label"]==0].index
-    remove_n = int(0.7 * len(negative_indices))
+    remove_n = int(0.5 * len(negative_indices))
     drop_indices = np.random.choice(negative_indices, remove_n, replace=False)
     df = df.drop(drop_indices)
+    df = df.reset_index()
+    df["id"] = df.index
 
     logger.info("Dataset shape: " + str(df.shape))
     print("Positive: ", len(df[df["label"]==1]), "Negative: ", len(df[df["label"]==0])  )
     dataset = Dataset.from_pandas(df)
-    train_testvalid = dataset.train_test_split(test_size=0.2)
+    train_testvalid = dataset.train_test_split(test_size=0.3)
     test_valid = train_testvalid['test'].train_test_split(test_size=0.5)
     train_test_valid_dataset = DatasetDict({
         'train': train_testvalid['train'],
@@ -133,17 +154,19 @@ def get_dataset():
 
 def prepare_qa_dataset(folder_path= "./dataframes_qa/"):
     df = None
-    for file in os.listdir(folder_path):
-        filepath = os.path.join(folder_path, file)
-        new_frame = pd.read_json(filepath)
-        if df is None or len(df)<len(new_frame):
-            df = new_frame
+    if os.path.exists("dataframes_json/qa_df.json"):
+        df = pd.read_json("dataframes_json/qa_df.json")
+    else:
+        for file in os.listdir(folder_path):
+            filepath = os.path.join(folder_path, file)
+            new_frame = pd.read_pickle(filepath)
+            if df is None or len(df)<len(new_frame):
+                df = new_frame
+        df.to_json("dataframes_json/qa_df.json")
     
     df["question"] = ""
-    df["id"] = df.index + 1
+    df["id"] = df.index
     df["answers"] = df.apply( lambda x: {"answer_start": x[3], "text": x[4]}, axis=1)
-
-    df.to_pickle("qa_df.pkl")
 
     dataset = Dataset.from_pandas(df)
     train_testvalid = dataset.train_test_split(test_size=0.2)

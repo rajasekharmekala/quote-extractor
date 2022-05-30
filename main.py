@@ -1,9 +1,8 @@
 import collections
-from boto import config
 import torch
 from tqdm import tqdm
 import datasets
-
+import pickle
 from dataset import get_dataset
 
 # import transformers
@@ -58,11 +57,13 @@ def train(train_dataloader, model, optimizer, config ):
 
         progress_bar.set_description(f'Acc: {accuracy.get():.3f}, Recall: {recall.get():.3f}')
 
-def validate(val_dataloader, model, config, best_val_recall):
+def validate(val_dataloader, model, config, best_val_recall ):
     logger.info('Validate')
     model.eval() # THIS PART IS VERY IMPORTANT TO SET BEFORE EVALUATION
     accuracy = Accuracy()
     recall = Recall()
+
+    no_ans_probs={}
 
     progress_bar = tqdm(val_dataloader)
     for batch in progress_bar:
@@ -76,13 +77,13 @@ def validate(val_dataloader, model, config, best_val_recall):
         # Compute accuracy for monitoring
         accuracy.update(output_dict['predictions'], batch['label'])
         recall.update(output_dict['predictions'],batch['label'])
-
+        no_ans_probs.update({batch['id'][idx].item() : output_dict['no_answer_probability'][idx] for idx in range(len(batch['label'])) })
         progress_bar.set_description(f'Acc: {accuracy.get():.3f}, Recall: {recall.get():.3f}')
 
     val_recall = recall.get()
     if val_recall > best_val_recall:
         logger.info('Best so far')
-        torch.save(model.state_dict(), 'ckpt.pt')
+        torch.save(model.state_dict(), f'checkpoints/best-model.pt')
         best_val_recall = val_recall
     return best_val_recall
 
@@ -113,9 +114,9 @@ def prepare_data(config):
     val_data = val_data.map(tokens_to_ids, fn_kwargs={'vocab':vocab, 'config': config})
     test_data = test_data.map(tokens_to_ids, fn_kwargs={'vocab':vocab, 'config': config})
 
-    train_data.set_format(type='torch', columns=['token_ids', 'label'])
-    val_data.set_format(type='torch', columns=['token_ids', 'label'])
-    test_data.set_format(type='torch', columns=['token_ids', 'label'])
+    train_data.set_format(type='torch', columns=['id', 'token_ids', 'label'])
+    val_data.set_format(type='torch', columns=['id', 'token_ids', 'label'])
+    test_data.set_format(type='torch', columns=['id', 'token_ids', 'label'])
 
     return train_data, val_data, test_data, vocab, num_classes
 
@@ -126,18 +127,21 @@ def main():
     config = Config()
 
     config.VOCAB_SIZE = 10000  # No magic numbers.
-    config.MAX_LENGTH = 32
-    config.EPOCHS = 10
+    config.MAX_LENGTH = 60
+    config.EPOCHS = 40
     config.BATCH_SIZE = 16
     config.DROPOUT_RATE = 0.1
     config.HIDDEN_DIM = 128
-    config.LEARNING_RATE = 3e-4
+    config.LEARNING_RATE = 3e-5
     config.DEVICE = 'cuda' if  torch.cuda.is_available() else 'cpu'
     logger.info(f"Running on {config.DEVICE}")
 
 
     train_data, val_data, test_data, vocab, num_classes = prepare_data(config)
     vocab_size = len(vocab)
+    with open('checkpoints/vocab.pkl', 'wb') as f:
+        pickle.dump(vocab, f)
+
     model = Model(
         vocab_size=vocab_size,
         n_classes=num_classes,
@@ -159,8 +163,9 @@ def main():
 
 
     # Load the best model checkpoint
-    state_dict = torch.load('ckpt.pt')
+    state_dict = torch.load(f'checkpoints/best-model.pt')
     model.load_state_dict(state_dict)
+    model.to(device=config.DEVICE)
     return model, vocab, config, num_classes
 
 

@@ -1,5 +1,5 @@
 import torch
-
+import numpy as np
 class Model(torch.nn.Module):
     def __init__(
         self, 
@@ -31,7 +31,7 @@ class Model(torch.nn.Module):
             out_features=n_classes,
         )
 
-    def forward(self, token_ids, label=None):
+    def forward(self, id, token_ids, label=None):
         # Create mask over all the positions where the input is padded
         mask = token_ids != 0  # 0 is the <pad> token.
         
@@ -80,16 +80,22 @@ class Model(torch.nn.Module):
         # Get the predicitons.
         # shape: (batch_size,)
         predictions = logits.argmax(dim=-1)
+        no_answer_probability = self.sigmoid(logits.detach().numpy())
+
 
         output_dict = {
             'logits': logits,
             'predictions': predictions,
+            'no_answer_probability': no_answer_probability
         }
 
         # Compute loss if labels are provided
         if label is not None:
-            label = label.type(torch.LongTensor)
+            # label = label.type(torch.LongTensor)
             loss = torch.nn.functional.cross_entropy(input=logits, target=label)
             output_dict['loss'] = loss
 
         return output_dict
+
+    def sigmoid(self, x):
+        return 1 / (1 + np.exp(x[:,1]-x[:,0]))
