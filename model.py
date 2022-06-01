@@ -80,7 +80,7 @@ class Model(torch.nn.Module):
         # Get the predicitons.
         # shape: (batch_size,)
         predictions = logits.argmax(dim=-1)
-        no_answer_probability = self.sigmoid(logits.detach().numpy())
+        no_answer_probability = self.sigmoid(logits.clone().detach().cpu().numpy())
 
 
         output_dict = {
