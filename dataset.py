@@ -93,6 +93,24 @@ def prepare_stage1_dataframe():
     logger.info(df.head(5))
     return df, num_classes-1
 
+
+def prepare_classifier_df():
+    connection = sqlite3.connect('./data/quotes.sqlite')
+
+    df = pd.read_sql_query(r"SELECT * FROM quotes", connection)
+    df.columns= df.columns.str.lower()
+    df = df.drop(columns = ['tags', 'likes'])
+    df['label'] = 1 
+    df["title"] = df["title"].apply(lambda title: re.sub(r"[:|']", "", title) )
+    replace_book_titles(df, "replace_book_titles.txt")
+
+    df.rename(columns = {'title':'chapter_name', 'quote': 'text'}, inplace = True)
+    df["text"] = df["text"].apply(lambda sentence: unidecode.unidecode(sentence.replace("\n  ―", "").replace('“','"').replace('”','"').strip(" ").strip('"').lower()) )
+    
+    # Dropping empty quotes
+    df = df.drop(df[df["text"] == ""].index)
+    return df
+
 def get_dataset_stage1_old():
     df, num_classes = prepare_stage1_dataframe()
     logger.info("Dataset shape: " + str(df.shape))
@@ -118,7 +136,7 @@ def concat_df_from_folder(folder_path="./dataframes/"):
             df = pd.concat([df, new_frame], ignore_index = True)
     return df
 
-def get_dataset():
+def get_dataset(drop_positive_labels = True):
     df = None
     if os.path.exists("dataframes_json/stage1_df.json"):
         df = pd.read_json("dataframes_json/stage1_df.json")
@@ -131,11 +149,22 @@ def get_dataset():
     num_classes=2
     np.random.seed(10)
 
-    negative_indices = df[df["label"]==0].index
-    remove_n = int(0.5 * len(negative_indices))
-    drop_indices = np.random.choice(negative_indices, remove_n, replace=False)
+    if drop_positive_labels:
+        drop_indices = df[df["label"]==1].index
+    else:
+        indices_to_remove = df[df["label"]==0].index
+        remove_n = int(0.5 * len(indices_to_remove))
+        drop_indices = np.random.choice(indices_to_remove, remove_n, replace=False)
+
     df = df.drop(drop_indices)
     df = df.reset_index()
+
+    if drop_positive_labels:
+        complete_quotes_df = prepare_classifier_df()
+        df2 = complete_quotes_df.drop(complete_quotes_df[complete_quotes_df["text"].str.len()>200].index)
+        df = pd.concat([df, df2], ignore_index = True)
+        df = df.sample(frac=1).reset_index()
+
     df["id"] = df.index
 
     logger.info("Dataset shape: " + str(df.shape))

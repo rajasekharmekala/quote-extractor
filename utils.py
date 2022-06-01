@@ -257,7 +257,6 @@ def add_to_qa_df(text, quotes, df, fuzzy_length=3, block_size=500, stride=100,ch
             x = regex.search(r'(%s){e<=%d}'%(quote,fuzzy_length), text,flags=regex.IGNORECASE)
             if x is not None:
                 found_quotes.add(quote)
-                print("-------------, found")
                 matches+=1
                 try:
                     match = x.group(0)
@@ -331,4 +330,4 @@ logger = get_logger("dataset")
 
 
 if __name__ == '__main__':
-    prepare_stage2_dataframe()
+    prepare_qa_dataframe()

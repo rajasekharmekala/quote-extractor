@@ -22,7 +22,7 @@ def validate(val_dataloader, model ):
     model.eval() 
     no_ans_probs={}
 
-    DEVICE = 'cuda' if  torch.cuda.is_available() else 'cpu'
+    DEVICE ='cpu'
     progress_bar = tqdm(val_dataloader)
     for batch in progress_bar:
         batch = {k: v.to(device=DEVICE) for k, v in batch.items()}
@@ -45,6 +45,9 @@ def compare_with_classifier(predictions, references):
         hidden_dim=128,
         dropout_rate=0.1
     )   
+    DEVICE ='cpu'
+    model.to(DEVICE)
+
     model.load_state_dict(state_dict)
 
     val_data = Dataset.from_pandas(df)

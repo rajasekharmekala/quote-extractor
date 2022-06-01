@@ -128,11 +128,11 @@ def main():
 
     config.VOCAB_SIZE = 10000  # No magic numbers.
     config.MAX_LENGTH = 60
-    config.EPOCHS = 40
+    config.EPOCHS = 20
     config.BATCH_SIZE = 16
     config.DROPOUT_RATE = 0.1
     config.HIDDEN_DIM = 128
-    config.LEARNING_RATE = 3e-5
+    config.LEARNING_RATE = 3e-4
     config.DEVICE = 'cuda' if  torch.cuda.is_available() else 'cpu'
     logger.info(f"Running on {config.DEVICE}")
 

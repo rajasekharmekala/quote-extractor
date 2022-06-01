@@ -1,4 +1,7 @@
-data/*
+data/books/*
+data/epub/*
+data/books*
+data/quotes.sqlite
 images/*
 NLP\ notes.ipynb
 .ipynb_checkpoints
