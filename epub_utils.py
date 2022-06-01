@@ -37,6 +37,9 @@ def chap2text(chap):
         if t.parent.name not in blacklist :
             t = t.replace("\n", " ").lower()
             t = unidecode.unidecode(re.sub('\s+',' ',t)).strip()
+            t = unidecode.unidecode(re.sub(r"[ ]*[-]+[ ]*", " - ", t)).strip()
+            #t = unidecode.unidecode(t.replace('"',"'").replace("\'","'")).strip()  
+            #print("2)replaced -- with -")
             if len(t)>0:
                 output += '{} '.format(t)
     return output
@@ -49,6 +52,9 @@ def chap2json(chap):
     for el in elements:
         text = el.get_text().replace("\n", " ").strip().lower()
         text = unidecode.unidecode(re.sub('\s+',' ',text))
+        text = unidecode.unidecode(re.sub(r"[ ]*[-]+[ ]*", " - ", text)).strip()
+        #t = unidecode.unidecode(t.replace('"',"'").replace("\'","'")).strip()
+        #print("1)replaced -- with -")
         if text != "":
             list.append({"name": el.name, "text": text })
     # for t in text:
