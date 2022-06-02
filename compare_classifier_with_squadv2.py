@@ -36,7 +36,7 @@ def compare_with_classifier(predictions, references):
     with open('checkpoints/vocab.pkl', 'rb') as f:
         vocab =pickle.load(f)
 
-    state_dict = torch.load('checkpoints/best-model.pt')
+    state_dict = torch.load('checkpoints/best-model.pt', map_location=torch.device('cpu'))
     df, num_classes = convert_pred_to_df(predictions)
 
     model = Model(

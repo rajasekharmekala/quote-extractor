@@ -20,3 +20,4 @@ test*.py
 dataframes/*
 wandb/*
 test-squad-trained/*
+results/*
