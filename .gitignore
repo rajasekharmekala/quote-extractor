@@ -16,7 +16,7 @@ Logs/*
 *.pkl
 sample.json
 test*.py
-*.ipynb
+notebooks/*
 dataframes/*
 wandb/*
 test-squad-trained/*
