@@ -215,10 +215,27 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
 
                     start_char = offset_mapping[start_index][0]
                     end_char = offset_mapping[end_index][1]
+                    predicted_text = context[start_char: end_char]
+                    try:
+                        prev_text = context[: start_char]
+                        prev_text = prev_text[prev_text.rindex('.'): ]
+                    except:
+                        prev_text = context[: start_char]
+
+                    try:
+                        next_text = context[end_char: ]
+                        next_text = next_text[next_text.index('.'): ]
+                    except:
+                        next_text = context[end_char: ]
+
+                    predicted_text = prev_text + predicted_text + next_text
+                    print(predicted_text)
+                    print("------------------------------------------------------")
+
                     valid_answers.append(
                         {
                             "score": start_logits[start_index] + end_logits[end_index],
-                            "text": context[start_char: end_char]
+                            "text": predicted_text
                         }
                     )
         
@@ -339,5 +356,5 @@ if __name__ == '__main__':
         formatted_predictions = [{"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in final_predictions.items()]
         metric = load_metric("squad_v2")
         print(metric.compute(predictions=formatted_predictions, references=references))
-        compare_with_classifier(formatted_predictions, references)
+        # compare_with_classifier(formatted_predictions, references)
 
