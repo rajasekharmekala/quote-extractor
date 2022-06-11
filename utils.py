@@ -16,6 +16,9 @@ class Accuracy:
         self.total = 1e-12
 
     def update(self, predictions, labels):
+        if len(labels.shape)>1:
+            labels = labels.view(-1)
+        # print(labels.shape, predictions.shape)
         correct = predictions == labels
         self.correct += correct.sum().item()
         self.total += correct.shape[0]
@@ -29,6 +32,8 @@ class Recall:
         self.total = 1e-12
 
     def update(self, predictions, labels):
+        if len(labels.shape)>1:
+            labels = labels.view(-1)
         correct = predictions[labels==1]
         self.correct += correct.sum().item()
         self.total += correct.shape[0]

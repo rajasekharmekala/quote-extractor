@@ -7,6 +7,7 @@ from transformers import AutoTokenizer, AutoModelForQuestionAnswering, TrainingA
 import numpy as np
 import collections
 import argparse
+from tqdm.auto import tqdm
 
 from dataset import prepare_qa_dataset
 
@@ -155,8 +156,6 @@ def prepare_validation_features(examples):
     return tokenized_examples
 
 
-from tqdm.auto import tqdm
-
 def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size = 20, max_answer_length = 150):
     all_start_logits, all_end_logits = raw_predictions
     # Build a map example to its corresponding features.
@@ -178,7 +177,7 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
 
         min_null_score = None # Only used if squad_v2 is True.
         valid_answers = []
-        
+
         context = example["context"]
         # Looping through all the features associated to the current example.
         for feature_index in feature_indices:
@@ -216,21 +215,6 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
                     start_char = offset_mapping[start_index][0]
                     end_char = offset_mapping[end_index][1]
                     predicted_text = context[start_char: end_char]
-                    try:
-                        prev_text = context[: start_char]
-                        prev_text = prev_text[prev_text.rindex('.'): ]
-                    except:
-                        prev_text = context[: start_char]
-
-                    try:
-                        next_text = context[end_char: ]
-                        next_text = next_text[next_text.index('.'): ]
-                    except:
-                        next_text = context[end_char: ]
-
-                    predicted_text = prev_text + predicted_text + next_text
-                    print(predicted_text)
-                    print("------------------------------------------------------")
 
                     valid_answers.append(
                         {
@@ -238,7 +222,7 @@ def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size 
                             "text": predicted_text
                         }
                     )
-        
+
         if len(valid_answers) > 0:
             best_answer = sorted(valid_answers, key=lambda x: x["score"], reverse=True)[0]
         else:
@@ -268,7 +252,7 @@ if __name__ == '__main__':
     print("Pretrained Model: ", _args.backbone)
     model_checkpoint = _args.backbone
     batch_size = 16
-    
+
     # datasets = load_dataset("squad_v2" if squad_v2 else "squad")
     datasets= prepare_qa_dataset()
 
@@ -276,14 +260,13 @@ if __name__ == '__main__':
 
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
-
     max_length = 500 # The maximum length of a feature (question and context)
     doc_stride = 128 # The authorized overlap between two part of the context when splitting it is needed.
     pad_on_right = tokenizer.padding_side == "right"
     
     # features = prepare_train_features(datasets['train'][:5])
     tokenized_datasets = datasets.map(prepare_train_features, batched=True, remove_columns=datasets["train"].column_names)
-    
+
     model = AutoModelForQuestionAnswering.from_pretrained(model_checkpoint)
     model_name = model_checkpoint.split("/")[-1]
     args = TrainingArguments(
@@ -358,3 +341,20 @@ if __name__ == '__main__':
         print(metric.compute(predictions=formatted_predictions, references=references))
         # compare_with_classifier(formatted_predictions, references)
 
+        pred_dt = { ex['id']: ex['prediction_text']  for ex in predictions}
+        ref_dt = { ex['id']: ex['answers']['text'][0] if len(ex['answers']['text'])>0 else ''  for ex in references}
+
+        total = 0
+        pps = 0
+        for key in pred_dt:
+            if len(ref_dt[key]) >0:
+                total+=1
+            else:
+                continue
+            if pred_dt[key] in ref_dt[key]:
+                pps+=1
+
+        print("total: ", total, "pps: ", pps, "fraction: ", pps/total)
+
+    # predictions = [{'id': 0, 'prediction_text': 'sample', 'no_answer_probability': 0 }, {'id': 1, 'prediction_text': 'something', 'no_answer_probability': 0 }]
+    # references = [{'id': 0, "answers": {'answer_start': [0], 'text': ['sample']} }, {'id': 1, "answers": {'answer_start': [], 'text': []} } ]
